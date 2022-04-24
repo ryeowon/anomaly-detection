@@ -3,6 +3,7 @@
 #
 # License: BSD 3 clause
 
+from turtle import pos
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -75,6 +76,12 @@ def plot_species_distribution(
         np.random.randint(low=0, high=data.Nx, size=10000),
     ].T
 
+    random_points = np.c_[
+        np.random.randint(low=-94.75, high=-34, size=100),
+        np.random.randint(low=-50, high=25, size=100),
+    ].T
+
+    cov_rand = data.coverages[:, random_points[0], random_points[1]].T
     land_reference = data.coverages[6] #coverage: georelational data model that stores vector data
 
     for i, species in enumerate([BV_bunch, MM_bunch]):
@@ -85,14 +92,14 @@ def plot_species_distribution(
         std = species.cov_train.std(axis=0)
         train_cover_std = (species.cov_train - mean) / std # 표준화
 
-        clf = svm.OneClassSVM(nu=0.1, kernel="rbf", gamma=0.5)
+        clf = svm.OneClassSVM(nu=0.01, kernel="rbf", gamma=0.01)
         clf.fit(train_cover_std)
 
         plt.subplot(1, 2, i + 1)
 
         # 남아메리카 지도 그리기
         if basemap:
-            print(" - plot coastlines using basemap")
+            #print(" - plot coastlines using basemap")
             m = Basemap(
                 projection="cyl",
                 llcrnrlat=Y.min(),
@@ -104,7 +111,7 @@ def plot_species_distribution(
             m.drawcoastlines()
             m.drawcountries()
         else:
-            print(" - plot coastlines from coverage")
+            #print(" - plot coastlines from coverage")
             plt.contour(
                 X, Y, land_reference, levels=[-9998], colors="k", linestyles="solid"
             )
@@ -126,16 +133,16 @@ def plot_species_distribution(
         Z[idx[0], idx[1]] = pred
         #print(Z[idx[0], idx[1]])
 
-        levels = np.linspace(Z.min(), Z.max(), 25)
+        #levels = np.linspace(Z.min(), Z.max(), 25)
 
-        plt.contourf(X, Y, Z, levels=levels, cmap=plt.cm.Reds)
-        plt.colorbar(format="%.2f")
+        #plt.contourf(X, Y, Z, levels=levels, cmap=plt.cm.Reds)
+        #plt.colorbar(format="%.2f")
 
         plt.scatter(
             species.pts_train["dd long"],
             species.pts_train["dd lat"],
             s=10,
-            c="black",
+            c="red",
             marker="^",
             label="train",
         )
@@ -144,7 +151,15 @@ def plot_species_distribution(
             species.pts_test["dd lat"],
             s=10,
             c="yellow",
-            label="test",
+            label="pos",
+            edgecolors="k",
+        )
+        plt.scatter(
+            random_points[0],
+            random_points[1],
+            s=8,
+            c="blue",
+            label="neg",
             edgecolors="k",
         )
         plt.legend()
@@ -160,8 +175,18 @@ def plot_species_distribution(
         fpr, tpr, thresholds = metrics.roc_curve(y, scores)
         #print(thresholds)
         roc_auc = metrics.auc(fpr, tpr)
-        plt.text(-35, -70, "AUC: %.3f" % roc_auc, ha="right")
-        print("\n Area under the ROC curve : %f" % roc_auc)
+        #plt.text(-35, -70, "AUC: %.3f" % roc_auc, ha="right")
+        #print("\n Area under the ROC curve : %f" % roc_auc)
+        
+        new_positive_cov = (species.cov_test - mean) / std 
+        new_negative_cov = (cov_rand - mean) / std 
+        train_cov = (species.cov_train - mean) / std 
+
+        print("\ninliers: 1, outliers: -1\n")
+
+        #print(clf.predict(train_cov)) # train data
+        print(clf.predict(new_positive_cov)) # 같은 class의 input data
+        #print(clf.predict(new_negative_cov)) # 다른 class의 input data
 
 
 plot_species_distribution()
